@@ -3,18 +3,23 @@
 #include <string>
 #include <mutex>
 
-namespace dataobject
-{
-struct SPointerException : virtual std::exception
-{
+namespace dataobject {
+struct SPointerException : virtual std::exception {
     SPointerException(std::string _message = std::string()) : m_message(std::move(_message)) {}
-    const char* what() const noexcept override { return m_message.empty() ? std::exception::what() : m_message.c_str(); }
+
+    const char* what() const noexcept override
+    {
+        return m_message.empty() ? std::exception::what() : m_message.c_str();
+    }
+
     void setMessage(std::string const& _text) { m_message = _text; }
+
     SPointerException& operator<<(const char* _t)
     {
         setMessage(_t);
         return *this;
     }
+
     SPointerException& operator<<(std::string const& _t)
     {
         setMessage(_t);
@@ -28,10 +33,10 @@ private:
 void throwException(std::string const& _ex);
 void disableThreadsafe();
 
-template <class T>
+template<class T>
 class GCP_SPointer;
-class GCP_SPointerBase
-{
+
+class GCP_SPointerBase {
 private:
     int _nRef;
     bool _isEmpty;
@@ -40,19 +45,18 @@ private:
     int GetRef();
     static std::mutex g_spRefAccessMutex;
 
-
 public:
     constexpr GCP_SPointerBase() : _nRef(0), _isEmpty(false) {}
-    template <class T>
+    template<class T>
     friend class GCP_SPointer;
 };
 
-template <class T>
-class GCP_SPointer
-{
+template<class T>
+class GCP_SPointer {
 private:
     T* _pointee;
     bool m_pointerSet = false;
+
     void release()
     {
         if (_pointee != nullptr)
@@ -74,6 +78,7 @@ public:
     static void DISABLETHREADSAFE() { disableThreadsafe(); };
     explicit GCP_SPointer() : _pointee(nullptr) {}
     GCP_SPointer(int) : _pointee(nullptr) {}
+
     explicit GCP_SPointer(T* pointee)
     {
         _pointee = pointee;
@@ -85,6 +90,7 @@ public:
                 _pointee = nullptr;
         }
     };
+
     GCP_SPointer(GCP_SPointer const& pnt) : _pointee(nullptr)
     {
         release();
@@ -101,7 +107,8 @@ public:
     T* pointee() { return _pointee; }
 
     // Remove link to the pointer.
-    void null() {
+    void null()
+    {
         release();
         _pointee = nullptr;
     }
@@ -156,7 +163,6 @@ public:
         return true;
     }
 
-
     // Types convertion
 private:
     T* getPointerUnsafe() const { return _pointee; }
@@ -169,12 +175,14 @@ public:
             throwException("GCP_SPointer:: T& operator*():: smart pointer is empty!");
         return *getPointerUnsafe();
     }
+
     T& getContent()
     {
         if (isEmpty())
             throwException("GCP_SPointer:: T& getContent():: smart pointer is empty!");
         return *getPointerUnsafe();
     }
+
     T const& getCContent() const
     {
         if (isEmpty())
@@ -182,21 +190,24 @@ public:
         return *getCPtr();
     }
 
-    operator T const&() const {
+    operator T const&() const
+    {
         if (isEmpty())
             throwException("GCP_SPointer:: operator T const&() const :: smart pointer is empty!");
         return getCContent();
     }
-    T const* operator->() const {
+
+    T* operator->() const
+    {
         if (isEmpty())
             throwException("GCP_SPointer:: T const* operator->() const :: smart pointer is empty!");
-        return getCPtr();
+        return getPointerUnsafe();
     }
 
     //template<class Tb, class Ta>
     //Tb operator[] (Ta arg){
     //    return _pointee[arg];
-   // }
+    // }
 
     // T* operator->() const { return _pointee; }
     // operator T*() { return _pointee; }
@@ -220,10 +231,11 @@ public:
     {
         return lhs._pointee == rhs._pointee;
     }
+
     // inline friend bool operator == (const SmartPtr& lhs, const T* rhs) { return lhs.pointee_ ==
     // rhs;} inline friend bool operator == (const T* lhs, const SmartPtr* rhs) { return lhs ==
     // rhs.pointee_;} inline friend bool operator != (const SmartPtr& lhs, const T* rhs) { return
     // lhs.pointee_ != rhs;} inline friend bool operator != (const T* lhs, const SmartPtr& rhs) {
     // return lhs != rhs.pointee_;}
 };
-}  // namespace dataobject
+} // namespace dataobject
