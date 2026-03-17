@@ -204,6 +204,22 @@ public:
         return getPointerUnsafe();
     }
 
+    template<class TIndex>
+    auto operator[](TIndex&& index) -> decltype((*getPointerUnsafe())[std::forward<TIndex>(index)])
+    {
+        if (isEmpty())
+            throwException("GCP_SPointer:: operator[]:: smart pointer is empty!");
+        return (*getPointerUnsafe())[std::forward<TIndex>(index)];
+    }
+
+    template<class TIndex>
+    auto operator[](TIndex&& index) const -> decltype((*getCPtr())[std::forward<TIndex>(index)])
+    {
+        if (isEmpty())
+            throwException("GCP_SPointer:: operator[] const:: smart pointer is empty!");
+        return (*getCPtr())[std::forward<TIndex>(index)];
+    }
+
     //template<class Tb, class Ta>
     //Tb operator[] (Ta arg){
     //    return _pointee[arg];
