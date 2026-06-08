@@ -1,6 +1,7 @@
 #include "JsonParser.h"
 #include "Exception.h"
 #include <algorithm>
+#include <charconv>
 #include <fstream>
 #include <iostream>
 
@@ -8,10 +9,11 @@ using namespace std;
 using namespace dataobject;
 
 JsonParser::JsonParser(std::string const& _input, CJOptions const& _opt)
-  : m_input(_input), m_opt(_opt)
+    : m_input(_input), m_opt(_opt)
 {
     if (_input.size() < 2 || _input.find("{") == string::npos || _input.rfind("}") == string::npos)
-        throw DataObjectException() << "ConvertJsoncppStringToData can't read json structure in file: `" + _input.substr(0, 50);
+        throw DataObjectException() << "ConvertJsoncppStringToData can't read json structure in file: `" + _input.
+              substr(0, 50);
 
     m_applyDepth.clear();
     m_root.getContent().setAutosort(_opt.autosort);
@@ -20,12 +22,12 @@ JsonParser::JsonParser(std::string const& _input, CJOptions const& _opt)
 
 string JsonParser::printDebug(size_t const& _i) const
 {
-    static const short c_debugSize = 120;
+    static constexpr short c_debug_size = 120;
     string debug;
-    if (_i > c_debugSize)
-        debug = m_input.substr(_i - c_debugSize, c_debugSize);
+    if (_i > c_debug_size)
+        debug = m_input.substr(_i - c_debug_size, c_debug_size);
     else
-        debug = m_input.substr(0, c_debugSize);
+        debug = m_input.substr(0, c_debug_size);
     return "\n\"------\n" + debug + "\n\"------";
 }
 
@@ -33,8 +35,8 @@ void JsonParser::parse()
 {
     for (size_t i = 0; i < m_input.length(); i++)
     {
-        bool isSeenCommaBefore = checkExcessiveComaBefore(i);
-        i = skipSpaces(i);
+        bool const is_seen_comma_before = checkExcessiveComaBefore(i);
+        i                               = skipSpaces(i);
         if (i == m_input.length())
             throw DataObjectException() << errorPrefix + "unexpected end of json! around: " + printDebug(i);
 
@@ -46,10 +48,10 @@ void JsonParser::parse()
         if (tryParseArrayBegin(i) == RET::CONTINUE)
             continue;
 
-        auto const arrayEndResult = tryParseArrayEnd(i, isSeenCommaBefore);
-        if (arrayEndResult == RET::CONTINUE)
+        auto const array_end_result = tryParseArrayEnd(i, is_seen_comma_before);
+        if (array_end_result == RET::CONTINUE)
             continue;
-        if (arrayEndResult == RET::RETURN)
+        if (array_end_result == RET::RETURN)
             return;
 
         tryParseDigitBoolNull(i);
@@ -59,14 +61,14 @@ void JsonParser::parse()
 void JsonParser::checkJsonCommaEnding(size_t& _i) const
 {
     if (m_input.at(_i) == '}' || m_input.at(_i) == ']')
-        _i--;  // because cycle iteration we need to process ending clouse
+        _i--; // because cycle iteration we need to process ending clouse
     else if (m_input.at(_i) != ',')
         throw DataObjectException() << errorPrefix
-            + "Dataobject array/object expected ',' when listing elements, but got `" + m_input.at(_i) + "`"
-            + "around: " + printDebug(_i);
+              + "Dataobject array/object expected ',' when listing elements, but got `" + m_input.at(_i) + "`"
+              + "around: " + printDebug(_i);
 }
 
-bool JsonParser::isEscapeChar(size_t _i) const
+bool JsonParser::isEscapeChar(size_t const _i) const
 {
     if (_i < 1)
         return m_input.at(_i) == '\\';
@@ -87,27 +89,27 @@ JsonParser::RET JsonParser::tryParseKeyValue(size_t& _i)
         {
             if (m_keyEncountered)
                 throw DataObjectException() << errorPrefix + "attempt to set key multiple times! "
-                                  "(like \"key\" : \"key\" : \"value\") around: " + printDebug(_i);
+                      "(like \"key\" : \"key\" : \"value\") around: " + printDebug(_i);
 
             m_keyEncountered = true;
             if (m_actualRoot->type() == DataType::Array)
                 throw DataObjectException()
-                    << errorPrefix + "array could not have elements with keys! around: " + printDebug(_i);
+                      << errorPrefix + "array could not have elements with keys! around: " + printDebug(_i);
             (*obj).setKey(key);
 
             m_applyDepth.push_back(m_actualRoot);
             if (m_actualRoot->count(key))
             {
-                bool allowedComment = false;
+                bool allowed_comment = false;
                 if (m_opt.jsonParse == CJOptions::JsonParse::ALLOW_COMMENTS
                     && key.size() > 2 && key.at(0) == '/' && key.at(1) == '/')
-                    allowedComment = true;
+                    allowed_comment = true;
 
-                if (m_opt.jsonParse == CJOptions::JsonParse::STRICT_JSON || !allowedComment)
+                if (m_opt.jsonParse == CJOptions::JsonParse::STRICT_JSON || !allowed_comment)
                 {
                     throw DataObjectException() << errorPrefix
-                       + "ConvertJsoncppStringToData::Error: Reading json with dublicate fields: `"
-                       + key + "` around: " + printDebug(_i) + "\n";
+                          + "ConvertJsoncppStringToData::Error: Reading json with dublicate fields: `"
+                          + key + "` around: " + printDebug(_i) + "\n";
                 }
                 m_actualRoot = &m_actualRoot->atKeyPointerUnsafe(key).getContent();
                 m_actualRoot->clearSubobjects();
@@ -128,7 +130,8 @@ JsonParser::RET JsonParser::tryParseKeyValue(size_t& _i)
                 return RET::CONTINUE;
             }
             else
-                m_actualRoot->setString(std::move(key));
+                parseStringAndSetValue(m_actualRoot, std::move(key));
+
             checkJsonCommaEnding(_i);
             m_actualRoot = m_applyDepth.at(m_applyDepth.size() - 1);
             m_applyDepth.pop_back();
@@ -186,7 +189,7 @@ JsonParser::RET JsonParser::tryParseArrayEnd(size_t& _i, bool _seenCommaBefore)
             throw DataObjectException() << "expected ']' closing the array! around: " + printDebug(_i);
         if (m_actualRoot->type() == DataType::Object && m_input.at(_i) != '}')
             throw DataObjectException()
-                << "expected '}' closing the object! around: " + printDebug(_i) + ", got: `" + m_input.at(_i) + "'";
+                  << "expected '}' closing the object! around: " + printDebug(_i) + ", got: `" + m_input.at(_i) + "'";
 
         if (!m_opt.stopper.empty() && m_actualRoot->getKey() == m_opt.stopper)
             return RET::RETURN;
@@ -213,7 +216,7 @@ JsonParser::RET JsonParser::tryParseArrayEnd(size_t& _i, bool _seenCommaBefore)
                 }
                 if (m_input.at(_i + 1) == ':')
                     throw DataObjectException()
-                        << errorPrefix + "unexpected ':' after closing an object/array! around: " + printDebug(_i);
+                          << errorPrefix + "unexpected ':' after closing an object/array! around: " + printDebug(_i);
             }
             return RET::CONTINUE;
         }
@@ -229,11 +232,11 @@ JsonParser::RET JsonParser::tryParseArrayEnd(size_t& _i, bool _seenCommaBefore)
 
 JsonParser::RET JsonParser::tryParseDigitBoolNull(size_t& _i)
 {
-    double resDouble = 0.0;
-    int resInt = 0;
-    bool resBool = false;
-    bool isReadBool = false;
-    bool isReadNull = false;
+    double resDouble                            = 0.0;
+    int resInt                                  = 0;
+    bool resBool                                = false;
+    bool isReadBool                             = false;
+    bool isReadNull                             = false;
     const JsonParser::ReadDigitType isReadDigit = readDigit(_i, resInt, resDouble);
     if (isReadDigit == JsonParser::ReadDigitType::NONE)
         isReadBool = readBoolOrNull(_i, resBool, isReadNull);
@@ -243,9 +246,9 @@ JsonParser::RET JsonParser::tryParseDigitBoolNull(size_t& _i)
         if (m_actualRoot->type() == DataType::Array)
         {
             if (isReadDigit == JsonParser::ReadDigitType::INT)
-                m_actualRoot->addArrayObject(sDataObject(DataType::Integer, (int)resInt));
+                m_actualRoot->addArrayObject(sDataObject(DataType::Integer, (int) resInt));
             else if (isReadDigit == JsonParser::ReadDigitType::DOUBLE)
-                m_actualRoot->addArrayObject(sDataObject(DataType::Double, (double)resDouble));
+                m_actualRoot->addArrayObject(sDataObject(DataType::Double, (double) resDouble));
             else if (isReadBool)
                 m_actualRoot->addArrayObject(sDataObject(DataType::Bool, resBool));
             else
@@ -271,6 +274,34 @@ JsonParser::RET JsonParser::tryParseDigitBoolNull(size_t& _i)
     return RET::GOON;
 }
 
+void JsonParser::parseStringAndSetValue(DataObject* _root, string&& _str)
+{
+    std::string_view const str_view{_str};
+    constexpr std::string_view u64_prefix = "u64::";
+    if (_str.starts_with(u64_prefix))
+    {
+        std::uint64_t value;
+        std::string_view const rest = str_view.substr(u64_prefix.size());
+
+        auto const* first = rest.data();
+        auto const* last  = rest.data() + rest.size();
+        auto [ptr, ec]    = std::from_chars(first, last, value, 10);
+        if (ec == std::errc{} && ptr == last)
+        {
+            // success, value is valid
+            _root->setUInt64(value);
+        }
+        else
+        {
+            _root->setString(std::move(_str));
+        }
+    }
+    else
+    {
+        _root->setString(std::move(_str));
+    }
+}
+
 bool JsonParser::isEmptyChar(char const& _char) const
 {
     static constexpr char emptyChars[] = {' ', '\n', '\r', '\t'};
@@ -289,18 +320,18 @@ string JsonParser::parseKeyValue(size_t& _i) const
         throw DataObjectException() << errorPrefix + "reached EOF before reading char: `\"` around: " + printDebug(_i);
 
     bool escapeChar = true;
-    size_t endPos = m_input.find('"', _i + 1);
-    if (endPos != string::npos)
+    size_t end_pos  = m_input.find('"', _i + 1);
+    if (end_pos != string::npos)
     {
         while (escapeChar)
         {
-            escapeChar = isEscapeChar(endPos - 1);
+            escapeChar = isEscapeChar(end_pos - 1);
             if (escapeChar)
-                endPos = m_input.find('"', endPos + 1);
+                end_pos = m_input.find('"', end_pos + 1);
         }
 
-        const string key = m_input.substr(_i + 1, endPos - _i - 1);
-        _i = endPos + 1;
+        const string key = m_input.substr(_i + 1, end_pos - _i - 1);
+        _i               = end_pos + 1;
         return key;
     }
     else
@@ -317,21 +348,21 @@ bool JsonParser::readBoolOrNull(size_t& _i, bool& _result, bool& _readNull) cons
     const string text = m_input.substr(_i, 4);
     if (text == "null")
     {
-        _i += 4;
+        _i        += 4;
         _readNull = true;
         return false;
     }
     if (text == "true")
     {
         _result = true;
-        _i += 4;
+        _i      += 4;
         return true;
     }
     else if (text == "fals")
     {
         if (m_input.substr(_i, 5) == "false")
         {
-            _i += 5;
+            _i      += 5;
             _result = false;
             return true;
         }
@@ -342,8 +373,8 @@ bool JsonParser::readBoolOrNull(size_t& _i, bool& _result, bool& _readNull) cons
 JsonParser::ReadDigitType JsonParser::readDigit(size_t& _i, int& _result, double& _resultDouble) const
 {
     bool readDouble = false;
-    bool readMinus = false;
-    auto const& e = m_input[_i];
+    bool readMinus  = false;
+    auto const& e   = m_input[_i];
     if (e == '-')
     {
         readMinus = true;
@@ -362,7 +393,7 @@ JsonParser::ReadDigitType JsonParser::readDigit(size_t& _i, int& _result, double
             {
                 _i++;
                 digit = false;
-                _i = skipSpaces(_i);
+                _i    = skipSpaces(_i);
                 continue;
             }
 
@@ -374,7 +405,7 @@ JsonParser::ReadDigitType JsonParser::readDigit(size_t& _i, int& _result, double
         else
         {
             digit = false;
-            _i = skipSpaces(_i);
+            _i    = skipSpaces(_i);
         }
     }
     if (readNumber.size())

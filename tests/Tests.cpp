@@ -636,6 +636,26 @@ void dataobject_readJson15()
     assert(dObj->asJson(0, false) == res);
 }
 
+void dataobject_readJson16()
+{
+    PRINT_FUNC_NAME();
+    string data       = R"(
+                {
+                    "int_field" : "u64::12345"
+                }
+       )";
+    spDataObject dObj = ConvertJsoncppStringToData(data);
+    string res        = R"({"int_field":"u64::12345"})";
+    assert(dObj->asJson(0, false) == res);
+    assert(dObj->atKey("int_field").type() == DataType::UInteger64);
+    assert(dObj->atKey("int_field").asUInt64() == 12345);
+
+    spDataObject out;
+    out["key"]     = std::uint64_t(12345);
+    string res_out = R"({"key":"u64::12345"})";
+    assert(out->asJson(0, false) == res_out);
+}
+
 void dataobject_findOrderedKeyPosition_before1_of3()
 {
     PRINT_FUNC_NAME();
@@ -1310,6 +1330,7 @@ int main()
     dataobject_readJson13();
     dataobject_readJson14();
     dataobject_readJson15();
+    dataobject_readJson16();
 
     dataobject_readJson_doublefields();
     dataobject_readJson_doublefields_allowComments();

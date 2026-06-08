@@ -7,15 +7,13 @@
 #include <vector>
 #include <variant>
 
-namespace dataobject
-{
-
-enum DataType
-{
+namespace dataobject {
+enum DataType {
     NotInitialized,
     Bool,
     String,
     Integer,
+    UInteger64,
     Double,
     Object,
     Array,
@@ -26,8 +24,7 @@ class DataObjectK;
 class GCP_SPointerDataObject;
 typedef GCP_SPointerDataObject spDataObject;
 
-class SafeBool
-{
+class SafeBool {
 public:
     SafeBool(bool value) : m_value(value) {}
     SafeBool(int) = delete;
@@ -39,18 +36,19 @@ private:
 
 /// DataObject
 /// A data sturcture to manage data from json, yml
-class DataObject : public GCP_SPointerBase
-{
+class DataObject : public GCP_SPointerBase {
 public:
     DataObject();
     DataObject(DataObject const&) = delete;
     explicit DataObject(DataType _type);
     explicit DataObject(DataType _type, SafeBool _bool);
-    explicit DataObject(DataType _type, int _bool);
-    explicit DataObject(DataType _type, double _bool);
+    explicit DataObject(DataType _type, int _int);
+    explicit DataObject(DataType _type, std::uint64_t _uint64);
+    explicit DataObject(DataType _type, double _double);
 
-    explicit DataObject(double _int);
+    explicit DataObject(double _double);
     explicit DataObject(int _int);
+    explicit DataObject(std::uint64_t _uint64);
     explicit DataObject(std::string&& _str);
     explicit DataObject(std::string const& _str);
 
@@ -58,7 +56,6 @@ public:
     DataObject(std::string&& _key, std::string&& _str);
     DataObject(std::string const& _key, std::string const& _str);
     DataObject(std::string&& _key, int _val);
-
 
     DataType type() const;
     void setKey(std::string&& _key);
@@ -85,6 +82,7 @@ public:
     std::string const asStringAnyway() const;
 
     int asInt() const;
+    std::uint64_t asUInt64() const;
     double asDouble() const;
     bool asBool() const;
 
@@ -98,17 +96,18 @@ public:
     void copyFrom(DataObject const& _other);
     DataObject& operator=(std::string&& _value);
     DataObject& operator=(std::string const& _value);
-    DataObject& operator=(size_t _value);
     DataObject& operator=(int _value);
+    DataObject& operator=(std::uint64_t _value);
     DataObject& operator=(double _value);
 
     void setString(std::string&& _value);
     void setInt(int _value);
+    void setUInt64(std::uint64_t _value);
     void setDouble(double _value);
     void setBool(bool _value);
     void replace(DataObject const& _value);
-    void renameKey(std::string const& _currentKey, std::string&& _newKey);
-    void removeKey(std::string const& _key);  // vector<element> erase method with `replace()` function
+    void renameKey(std::string const& _current_key, std::string&& _new_key);
+    void removeKey(std::string const& _key); // vector<element> erase method with `replace()` function
 
     DataObject const& atKey(std::string const& _key) const;
     DataObjectK atKeyPointer(std::string const& _key);
@@ -120,13 +119,13 @@ public:
     DataObject const& atLastElement() const;
     DataObject& atLastElementUnsafe();
 
-    enum ModifierOption
-    {
+    enum ModifierOption {
         RECURSIVE,
         NONRECURSIVE
     };
-    void performModifier(void (*f)(DataObject&), ModifierOption _opt = ModifierOption::RECURSIVE,
-        std::set<std::string> const& _exceptionKeys = {});
+
+    void performModifier(void (*f)(DataObject&), ModifierOption _opt  = ModifierOption::RECURSIVE,
+                         std::set<std::string> const& _exception_keys = {});
     bool performSearch(bool (*f)(DataObject const&)) const;
 
     void clear(DataType _type = DataType::NotInitialized);
@@ -141,7 +140,7 @@ public:
     void clearSubobjects(DataType _t = DataType::NotInitialized);
 
 private:
-    DataObject& _addSubObject(spDataObject const& _obj, std::string&& _keyOverwrite = std::string());
+    DataObject& _addSubObject(spDataObject const& _obj, std::string&& _key_overwrite = std::string());
     void _assert(bool _flag, std::string const& _comment = std::string()) const;
     void _initArray(DataType _type);
     constexpr bool _isNotInit() const;
@@ -154,22 +153,23 @@ private:
     typedef std::map<std::string, spDataObject> MapKeyToObject;
     typedef std::pair<VecSpData, MapKeyToObject> DataObjecto;
     typedef std::tuple<VecSpData, MapKeyToObject> DataArray;
+
     struct DataNull {};
-    typedef std::variant<std::monostate, bool, std::string, int, double, DataObjecto, DataArray, DataNull> DataVariant;
+
+    typedef std::variant<std::monostate, bool, std::string, int, std::uint64_t, double, DataObjecto, DataArray,
+        DataNull> DataVariant;
     DataVariant m_value;
 };
 
 // Default DataObject pointer allocator so not to type 'new DataObject()' each time
-class GCP_SPointerDataObject : public GCP_SPointer<DataObject>
-{
+class GCP_SPointerDataObject : public GCP_SPointer<DataObject> {
 public:
-    GCP_SPointerDataObject() : GCP_SPointer<DataObject>(new DataObject()){}
-    GCP_SPointerDataObject(DataObject* _data) : GCP_SPointer<DataObject>(_data){}
+    GCP_SPointerDataObject() : GCP_SPointer<DataObject>(new DataObject()) {}
+    GCP_SPointerDataObject(DataObject* _data) : GCP_SPointer<DataObject>(_data) {}
 };
 
 // The key assigner, assign left pointer to DataObjectK's host m_data[key]
-class DataObjectK
-{
+class DataObjectK {
 public:
     DataObjectK(std::string const& _key, DataObject& _container) : m_key(_key), m_data(_container) {}
     DataObjectK& operator=(spDataObject const& _value);
@@ -181,16 +181,15 @@ private:
     DataObject& m_data;
 };
 
-
-template <class T>
+template<class T>
 spDataObject sDataObject(T _arg) { return spDataObject(new DataObject(_arg)); }
-template <class T, class T2>
+
+template<class T, class T2>
 spDataObject sDataObject(T _arg, T2 _arg2) { return spDataObject(new DataObject(_arg, _arg2)); }
 
 // Can help to keep incapsulation
 // DataObject move requester, require the memory pointer to be irreversably moved into it
-class spDataObjectMove
-{
+class spDataObjectMove {
 public:
     spDataObjectMove() {}
     void assignPointer(spDataObject const& _obj) { m_obj = _obj; }
@@ -207,5 +206,4 @@ spDataObjectMove move(spDataObject& _obj);
 // Find index that _key should take place in when being added to ordered _objects by key
 // Heavy function, use only on export when need to construct json with sorted keys
 size_t findOrderedKeyPosition(std::string const& _key, std::vector<spDataObject> const& _objects);
-
 }
