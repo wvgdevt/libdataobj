@@ -109,6 +109,9 @@ public:
     void renameKey(std::string const& _current_key, std::string&& _new_key);
     void removeKey(std::string const& _key); // vector<element> erase method with `replace()` function
 
+    std::map<std::string, spDataObject>::const_iterator findKey(std::string const& _key) const;
+    std::map<std::string, spDataObject>::const_iterator keyEnd() const;
+
     DataObject const& atKey(std::string const& _key) const;
     DataObjectK atKeyPointer(std::string const& _key);
     spDataObject& atKeyPointerUnsafe(std::string const& _key);

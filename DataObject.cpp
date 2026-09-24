@@ -386,8 +386,9 @@ DataObjectK DataObject::atKeyPointer(std::string const& _key)
 DataObject const& DataObject::atKey(std::string const& _key) const
 {
     auto const& sub_object_keys = getSubObjectKeys();
-    if (sub_object_keys.contains(_key))
-        return sub_object_keys.at(_key).getCContent();
+    auto const it               = sub_object_keys.find(_key);
+    if (it != sub_object_keys.end())
+        return it->second.getCContent();
 
     _assert(false, "count(_key) _key=" + _key + " (DataObject::atKey)");
     auto const& sub_objects = getSubObjects();
@@ -397,8 +398,10 @@ DataObject const& DataObject::atKey(std::string const& _key) const
 DataObject& DataObject::atKeyUnsafe(std::string const& _key)
 {
     auto& sub_object_keys = _getSubObjectKeysUnsafe();
-    if (sub_object_keys.contains(_key))
-        return sub_object_keys.at(_key).getContent();
+    auto const it         = sub_object_keys.find(_key);
+    if (it != sub_object_keys.end())
+        return it->second.getContent();
+
     _assert(false, "count(_key) _key=" + _key + " (DataObject::atKeyUnsafe)");
     auto& sub_objects = getSubObjectsUnsafe();
     return sub_objects.at(0).getContent();
@@ -485,6 +488,17 @@ void DataObject::removeKey(std::string const& _key)
                                          return _obj->getKey() == _key;
                                      }), sub_objects.end());
     sub_object_keys.erase(_key);
+}
+
+std::map<std::string, spDataObject>::const_iterator DataObject::findKey(std::string const& _key) const
+{
+    auto const& sub_object_keys = getSubObjectKeys();
+    return sub_object_keys.find(_key);
+}
+
+std::map<std::string, spDataObject>::const_iterator DataObject::keyEnd() const
+{
+    return getSubObjectKeys().end();
 }
 
 void DataObject::clear(DataType const _type)
