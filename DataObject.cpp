@@ -372,8 +372,9 @@ DataObjectK& DataObjectK::operator=(spDataObject const& _value)
 spDataObject& DataObject::atKeyPointerUnsafe(std::string const& _key)
 {
     auto& sub_object_keys = _getSubObjectKeysUnsafe();
-    if (sub_object_keys.contains(_key))
-        return sub_object_keys.at(_key);
+    auto const it         = sub_object_keys.find(_key);
+    if (it != sub_object_keys.end())
+        return it->second;
     _assert(false, "count(_key) _key=" + _key + " (DataObject::atKeyPointerUnsafe)");
     return sub_object_keys.at(0);
 }
