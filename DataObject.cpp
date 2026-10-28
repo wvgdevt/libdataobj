@@ -176,6 +176,16 @@ std::map<string, spDataObject>& DataObject::_getSubObjectKeysUnsafe()
     return empty_map; // Dangerous, Not Thread Safe, should never be here
 }
 
+std::map<std::string, spDataObject> const& DataObject::_getSubObjectKeys() const
+{
+    static std::map<std::string, spDataObject> empty_map;
+    if (type() == DataType::Object)
+        return std::get<DataObjecto>(m_value).second;
+    if (type() == DataType::Array)
+        return std::get<1>(std::get<DataArray>(m_value));
+    return empty_map; // Dangerous, Not Thread Safe, should never be here
+}
+
 /// Get ref vector of subobjects
 std::vector<spDataObject>& DataObject::getSubObjectsUnsafe()
 {
@@ -373,6 +383,16 @@ spDataObject& DataObject::atKeyPointerUnsafe(std::string const& _key)
 {
     auto& sub_object_keys = _getSubObjectKeysUnsafe();
     auto const it         = sub_object_keys.find(_key);
+    if (it != sub_object_keys.end())
+        return it->second;
+    _assert(false, "count(_key) _key=" + _key + " (DataObject::atKeyPointerUnsafe)");
+    return sub_object_keys.at(0);
+}
+
+spDataObject DataObject::atKeyPointerUnsafe(std::string const& _key) const
+{
+    auto const& sub_object_keys = _getSubObjectKeys();
+    auto const it               = sub_object_keys.find(_key);
     if (it != sub_object_keys.end())
         return it->second;
     _assert(false, "count(_key) _key=" + _key + " (DataObject::atKeyPointerUnsafe)");

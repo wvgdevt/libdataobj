@@ -115,6 +115,7 @@ public:
     DataObject const& atKey(std::string const& _key) const;
     DataObjectK atKeyPointer(std::string const& _key);
     spDataObject& atKeyPointerUnsafe(std::string const& _key);
+    spDataObject atKeyPointerUnsafe(std::string const& _key) const;
     spDataObject& atPointerUnsafe(size_t _pos);
     DataObject& atKeyUnsafe(std::string const& _key);
     DataObject const& at(size_t _pos) const;
@@ -148,6 +149,7 @@ private:
     void _initArray(DataType _type);
     constexpr bool _isNotInit() const;
     std::map<std::string, spDataObject>& _getSubObjectKeysUnsafe();
+    std::map<std::string, spDataObject> const& _getSubObjectKeys() const;
 
     std::string m_strKey;
     bool m_autosort = false;
